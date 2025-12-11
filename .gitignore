@@ -1,0 +1,54 @@
+# ======================
+# clasp関連
+# ======================
+**/.clasp.json
+.clasp.json
+
+# ======================
+# IDE設定ファイル
+# ======================
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# ======================
+# OS固有ファイル
+# ======================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ======================
+# ログ・一時ファイル
+# ======================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ======================
+# 環境変数・認証情報
+# ======================
+.env
+.env.local
+*.key
+*.pem
+credentials.json
