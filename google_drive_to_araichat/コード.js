@@ -11,21 +11,13 @@ function main() {
   try {
     // スクリプトプロパティから設定値を取得
     const SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-    const DRIVE_FOLDER_ID = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
     
     if (!SPREADSHEET_ID) {
       Logger.log("SPREADSHEET_IDがスクリプトプロパティに設定されていません");
       return;
     }
-    if (!DRIVE_FOLDER_ID) {
-      Logger.log("DRIVE_FOLDER_IDがスクリプトプロパティに設定されていません");
-      return;
-    }
     
-    // 1. Google DriveのHTMLファイルを検索して削除
-    deleteHtmlFilesInDrive(DRIVE_FOLDER_ID);
-    
-    // 2. Google Sheetsからデータを取得
+    // 1. Google Sheetsからデータを取得
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
     if (!sheet) {
       Logger.log("シートが見つかりません: " + SHEET_NAME);
@@ -65,7 +57,7 @@ function main() {
       return;
     }
     
-    // 3. 不良率をパーセントに変換
+    // 2. 不良率をパーセントに変換
     const processedRows = rowsToProcess.map(row => {
       let rate = row["不良率"];
       if (rate === "" || rate === null || rate === undefined) {
@@ -76,27 +68,28 @@ function main() {
       return row;
     });
     
-    // 4. AIエージェント用のプロンプト生成とHTML生成
+    // 3. AIエージェント用のプロンプト生成とHTML生成
     const promptData = generatePromptForAI(processedRows);
     
-    // 5. AI分析コメントを生成
+    // 4. AI分析コメントを生成
     const aiCommentHtml = generateAIComment(promptData.dataForAgent);
     
-    // 6. HTMLとAIコメントを結合してファイル生成
+    // 5. HTMLとAIコメントを結合してファイル生成
     const finalHtml = combineHtmlAndAIComment(promptData.initialHtml, aiCommentHtml, processedRows, promptData.fileName);
     
-    // 7. Google Driveにアップロード
-    uploadToDrive(promptData.fileName, finalHtml, DRIVE_FOLDER_ID);
+    // 6. 生成HTMLをARAICHATへ直接送信
+    const htmlBytes = Utilities.newBlob(finalHtml, 'text/html', promptData.fileName).getBytes();
+    const sendResult = sendFileToAraichat(htmlBytes, promptData.fileName);
+    if (!sendResult) {
+      Logger.log("ARAICHATへの送信に失敗しました");
+    }
     
-    // 8. 送信フラグを「済」に更新
+    // 7. 送信フラグを「済」に更新
     processedRows.forEach(row => {
       sheet.getRange(row.row_number, headerIndexes["送信"] + 1).setValue("済");
     });
     
     Logger.log(`処理完了: ${processedRows.length}件のデータを処理しました`);
-    
-    // 9. ARAICHATにHTMLファイルを送信
-    sendHtmlFilesToAraichat(DRIVE_FOLDER_ID);
     
   } catch (error) {
     Logger.log("エラーが発生しました: " + error.toString());
@@ -322,6 +315,7 @@ function generateAIComment(dataForAgent) {
   }
   
   const prompt = `あなたは、**製造業の精密部品加工の品質管理担当者であり、熟練された上級位のプロのCNC自動旋盤オペレーター**です。
+（シチズンマシナリー株式会社のCincom製マシンを使用）
 
 以下の入力データ（JSON形式の検査結果データ）を元に、**検査結果のAI分析コメントのみ**を生成してください。
 
@@ -336,6 +330,7 @@ function generateAIComment(dataForAgent) {
 <ol>
   <li>見出し：「AI分析コメント：」とすること。</li>
   <li>書式：<code>&lt;ul&gt;&lt;li&gt;〜&lt;/li&gt;&lt;/ul&gt;</code>の箇条書き形式で出力すること。</li>
+  <li>同一の客先・品番・品名については、原因と改善策を1つの&lt;li&gt;内にまとめ、別の&lt;li&gt;やテーブルに分けないこと。</li>
   <li>視点：**製造業の精密部品加工の品質管理担当者としての深い分析力と、CNC自動旋盤の熟練された上級位のプロのオペレーターとしての実践的な経験**、そして統計品質管理（SQC）に基づく多角的な品質分析の視点から、**要点を絞って**コメントすること。</li>
   <li>表現：誰もが理解しやすい、**簡潔で分かりやすい日本語**で記述し、回りくどい表現は避ける。専門用語には必要に応じ簡単な補足を付ける。</li>
   <li>敬称：客先名に「様」などは付けないこと。</li>
